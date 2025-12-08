@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tjm-project"
+version = "0.1.0"
+description = "Desktop automation script for Notepad automation with icon detection"
+readme = "README.md"
+requires-python = ">=3.7"
+dependencies = [
+    "opencv-python>=4.5.0",
+    "numpy>=1.19.0",
+    "pyautogui>=0.9.50",
+    "Pillow>=8.0.0",
+    "pygetwindow>=0.0.9",
+    "requests>=2.25.0",
+    "pywinauto>=0.6.8",
+    "pyperclip>=1.8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0",
+    "black>=21.0",
+    "flake8>=3.8",
+]
+
+[tool.setuptools]
+packages = []
+
