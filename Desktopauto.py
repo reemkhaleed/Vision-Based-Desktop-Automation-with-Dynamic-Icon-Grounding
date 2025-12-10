@@ -15,11 +15,11 @@ from pywinauto.application import Application
 
 # CONSTANTS  
 
-ICON_PATH = "notepad_icon.png"  # Path to the Notepad icon image
+ICON_PATH = "notepad_icon.png" 
 OUTPUT_DIR = r"C:\Users\amrk6\Desktop\tjm-project"
 ANNOTATED_DIR = os.path.join(OUTPUT_DIR, "annotated")
 POSTS_API = "https://jsonplaceholder.typicode.com/posts"
-MAX_POSTS = 4
+MAX_POSTS = 10
 RETRY_ATTEMPTS = 3
 RETRY_DELAY = 1  
 
@@ -230,3 +230,4 @@ if __name__ == "__main__":
         time.sleep(1)
 
     print("All posts processed!")
+
