@@ -9,6 +9,7 @@ description = "Desktop automation script for Notepad automation with icon detect
 readme = "README.md"
 requires-python = ">=3.7"
 dependencies = [
+    "botcity-framework-core>=0.1.0",
     "opencv-python>=4.5.0",
     "numpy>=1.19.0",
     "pyautogui>=0.9.50",
