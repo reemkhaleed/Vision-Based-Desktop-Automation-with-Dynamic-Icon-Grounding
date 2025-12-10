@@ -28,7 +28,7 @@ os.makedirs(ANNOTATED_DIR, exist_ok=True)
 # ------------------ UTILITY FUNCTIONS ------------------
 
 def close_unexpected_popups(main_window_title):
-    """Closes all windows except the main one."""
+
     windows = gw.getAllTitles()
     for w in windows:
         if w and main_window_title not in w:
@@ -44,7 +44,7 @@ def close_unexpected_popups(main_window_title):
                 print(f"Could not close window '{w}': {e}")
 
 def fetch_posts():
-    """Fetch posts from API, fallback to Chrome if API unavailable."""
+
     try:
         response = requests.get(POSTS_API)
         response.raise_for_status()
@@ -54,7 +54,7 @@ def fetch_posts():
         return fetch_posts_from_chrome()
 
 def fetch_posts_from_chrome():
-    """Fetch posts by opening Chrome and copying the JSON."""
+
     pyautogui.hotkey('win')
     time.sleep(0.5)
     pyautogui.write('chrome')
@@ -78,7 +78,6 @@ def fetch_posts_from_chrome():
 # ------------------ NOTEPAD FUNCTIONS ------------------
 
 def open_notepad(bot: DesktopBot, screenshot_index=0, scales=[0.5, 0.75, 1.0, 1.25, 1.5, 2.0], threshold=0.5):
-    """Open Notepad by detecting its icon robustly on the desktop."""
     
     # Minimize all windows
     bot.type_keys(["win", "d"])
@@ -135,7 +134,7 @@ def open_notepad(bot: DesktopBot, screenshot_index=0, scales=[0.5, 0.75, 1.0, 1.
     return False
 
 def fallback_open_notepad_via_search(main_window_title="Untitled - Notepad"):
-    """Open Notepad via Windows search and close popups."""
+
     print("Fallback: Opening Notepad via Windows search...")
     pyautogui.hotkey('win')
     time.sleep(0.5)
@@ -221,3 +220,4 @@ if __name__ == "__main__":
         time.sleep(1)
 
     print("All posts processed!")
+
