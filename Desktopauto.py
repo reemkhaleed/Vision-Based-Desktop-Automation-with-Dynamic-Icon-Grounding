@@ -12,8 +12,7 @@ from PIL import Image
 from pywinauto import keyboard
 from pywinauto.application import Application
 
-
-# CONSTANTS  
+# ------------------ CONSTANTS ------------------
 
 ICON_PATH = "notepad_icon.png"  # Path to the Notepad icon image
 OUTPUT_DIR = r"C:\Users\amrk6\Desktop\tjm-project"
@@ -21,17 +20,15 @@ ANNOTATED_DIR = os.path.join(OUTPUT_DIR, "annotated")
 POSTS_API = "https://jsonplaceholder.typicode.com/posts"
 MAX_POSTS = 10
 RETRY_ATTEMPTS = 3
-RETRY_DELAY = 1  
+RETRY_DELAY = 1  # seconds
 
-# Create required directories
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(ANNOTATED_DIR, exist_ok=True)
 
-# UTILITY FUNCTIONS 
-
+# ------------------ UTILITY FUNCTIONS ------------------
 
 def close_unexpected_popups(main_window_title):
-    
+    """Closes all windows except the main one."""
     windows = gw.getAllTitles()
     for w in windows:
         if w and main_window_title not in w:
@@ -47,7 +44,7 @@ def close_unexpected_popups(main_window_title):
                 print(f"Could not close window '{w}': {e}")
 
 def fetch_posts():
-
+    """Fetch posts from API, fallback to Chrome if API unavailable."""
     try:
         response = requests.get(POSTS_API)
         response.raise_for_status()
@@ -57,8 +54,8 @@ def fetch_posts():
         return fetch_posts_from_chrome()
 
 def fetch_posts_from_chrome():
-
-    bot.type_windows()
+    """Fetch posts by opening Chrome and copying the JSON."""
+    pyautogui.hotkey('win')
     time.sleep(0.5)
     pyautogui.write('chrome')
     pyautogui.press('enter')
@@ -78,11 +75,11 @@ def fetch_posts_from_chrome():
     print("Posts copied from Chrome successfully.")
     return posts[:MAX_POSTS]
 
-
-# NOTEPAD FUNCTIONS 
+# ------------------ NOTEPAD FUNCTIONS ------------------
 
 def open_notepad(bot: DesktopBot, screenshot_index=0, scales=[0.5, 0.75, 1.0, 1.25, 1.5, 2.0], threshold=0.5):
-
+    """Open Notepad by detecting its icon robustly on the desktop."""
+    
     # Minimize all windows
     bot.type_keys(["win", "d"])
     time.sleep(1)
@@ -93,49 +90,63 @@ def open_notepad(bot: DesktopBot, screenshot_index=0, scales=[0.5, 0.75, 1.0, 1.
     desktop_color = cv2.imread(screenshot_path)
     desktop_gray = cv2.cvtColor(desktop_color, cv2.COLOR_BGR2GRAY)
 
-    # Edge detection to highlight desktop icons
-    desktop_edges = cv2.Canny(desktop_gray, 50, 150)
-    contours, _ = cv2.findContours(desktop_edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    for cnt in contours:
-        x, y, w, h = cv2.boundingRect(cnt)
-        if w > 20 and h > 20:
-            cv2.rectangle(desktop_color, (x, y), (x + w, y + h), (0, 0, 255), 2)
-
-    # Load target icon and apply edge detection
+    # Load target icon
     target_img = cv2.imread(ICON_PATH, cv2.IMREAD_GRAYSCALE)
     if target_img is None:
         print("Icon image not found.")
         return False
-    target_edges = cv2.Canny(target_img, 50, 150)
 
-    # Multi-scale template matching to find the icon
-    target_found = False
+    # --- Multi-scale template matching ---
+    target_edges = cv2.Canny(target_img, 50, 150)
+    desktop_edges = cv2.Canny(desktop_gray, 50, 150)
     for scale in scales:
         resized_target = cv2.resize(target_edges, (0, 0), fx=scale, fy=scale)
         res = cv2.matchTemplate(desktop_edges, resized_target, cv2.TM_CCOEFF_NORMED)
         _, max_val, _, max_loc = cv2.minMaxLoc(res)
-
         if max_val >= threshold:
             x, y = max_loc
             h, w = resized_target.shape
-            cv2.rectangle(desktop_color, (x, y), (x + w, y + h), (0, 255, 0), 3)
-
             center_x = x + w // 2
             center_y = y + h // 2
             bot.mouse_move(center_x, center_y)
             pyautogui.doubleClick()
-            print(f"Notepad icon found and opened at ({center_x}, {center_y})")
-            target_found = True
-            break
+            print(f"Notepad icon found via template matching at ({center_x}, {center_y})")
+            return True
 
-    # Save annotated screenshot
-    cv2.imwrite(screenshot_path, desktop_color)
-    print(f"Annotated desktop saved as {screenshot_path}")
+    # --- ORB feature matching as fallback ---
+    orb = cv2.ORB_create()
+    kp1, des1 = orb.detectAndCompute(target_img, None)
+    kp2, des2 = orb.detectAndCompute(desktop_gray, None)
+    if des1 is not None and des2 is not None:
+        bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+        matches = bf.match(des1, des2)
+        matches = sorted(matches, key=lambda x: x.distance)
+        if len(matches) > 10:  # enough good matches
+            src_pts = np.float32([kp1[m.queryIdx].pt for m in matches]).reshape(-1,1,2)
+            dst_pts = np.float32([kp2[m.trainIdx].pt for m in matches]).reshape(-1,1,2)
+            avg_x = int(np.mean(dst_pts[:,0,0]))
+            avg_y = int(np.mean(dst_pts[:,0,1]))
+            bot.mouse_move(avg_x, avg_y)
+            pyautogui.doubleClick()
+            print(f"Notepad icon found via ORB feature matching at ({avg_x}, {avg_y})")
+            return True
 
-    return target_found
+    print("Notepad icon not detected on desktop.")
+    return False
+
+def fallback_open_notepad_via_search(main_window_title="Untitled - Notepad"):
+    """Open Notepad via Windows search and close popups."""
+    print("Fallback: Opening Notepad via Windows search...")
+    pyautogui.hotkey('win')
+    time.sleep(0.5)
+    pyautogui.write("Notepad")
+    time.sleep(0.5)
+    pyautogui.press('enter')
+    time.sleep(1.5)
+    close_unexpected_popups(main_window_title)
 
 def wait_for_notepad(timeout=10):
-
+    """Wait for Notepad window to become active."""
     start_time = time.time()
     while time.time() - start_time < timeout:
         windows = gw.getWindowsWithTitle("Untitled - Notepad")
@@ -151,16 +162,14 @@ def wait_for_notepad(timeout=10):
     return None
 
 def type_and_save_post(post):
-
+    """Type post content into Notepad and save as text file."""
     content = f"Title: {post['title']}\n\n{post['body']}\n\n"
 
-    # Type each line
     for line in content.splitlines():
         pyautogui.write(line, interval=0.03)
         pyautogui.press('enter')
     time.sleep(0.5)
 
-    # Save file
     base_name = f"post_{post['id']}"
     full_path = os.path.join(OUTPUT_DIR, f"{base_name}.txt")
     counter = 1
@@ -173,23 +182,20 @@ def type_and_save_post(post):
     pyautogui.write(full_path)
     pyautogui.press('enter')
     time.sleep(0.5)
-
     pyautogui.hotkey('ctrl', 'w')
 
-# MAIN EXECUTION 
+# ------------------ MAIN EXECUTION ------------------
 
 if __name__ == "__main__":
     bot = DesktopBot()
+    main_window_title = "Untitled - Notepad"
 
-    # Step 1: Fetch posts
     posts = fetch_posts()
     if not posts:
         print("No posts available.")
         exit(1)
 
-    # Step 2: Process each post
     for idx, post in enumerate(posts):
-        # Attempt to open Notepad
         success = False
         for attempt in range(RETRY_ATTEMPTS):
             if open_notepad(bot, screenshot_index=idx):
@@ -201,10 +207,15 @@ if __name__ == "__main__":
             time.sleep(RETRY_DELAY)
 
         if not success:
+            fallback_open_notepad_via_search(main_window_title)
+            notepad_window = wait_for_notepad()
+            if notepad_window:
+                success = True
+
+        if not success:
             print(f"Failed to open Notepad for post {post['id']}. Skipping...")
             continue
 
-        # Type and save the post
         type_and_save_post(post)
         print(f"Post {post['id']} typed and saved successfully.")
         time.sleep(1)
